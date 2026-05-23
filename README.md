@@ -4,6 +4,7 @@ Personal infrastructure configuration.
 
 ## Structure
 
+- `ansible/` — Ansible playbooks for host management.
 - `docker-compose/` — Docker Compose stacks for self-hosted services.
   - `3x-ui/` — [3x-ui](https://github.com/MHSanaei/3x-ui) Xray panel.
   - `n8n/` — [n8n](https://n8n.io) workflow automation with Postgres.

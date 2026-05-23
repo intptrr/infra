@@ -1,0 +1,63 @@
+---
+- name: Upgrade packages
+  hosts: all
+  become: true
+  gather_facts: true
+  vars:
+    autoremove: true
+    autoclean: true
+    reboot_if_required: true
+    reboot_timeout: 600
+
+  tasks:
+    # Debian / Ubuntu
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 0
+      when: ansible_facts["pkg_mgr"] == "apt"
+
+    - name: Upgrade apt packages
+      ansible.builtin.apt:
+        upgrade: dist
+        autoremove: "{{ autoremove }}"
+        autoclean: "{{ autoclean }}"
+      when: ansible_facts["pkg_mgr"] == "apt"
+
+    - name: Check apt reboot flag
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: apt_reboot_required
+      when: ansible_facts["pkg_mgr"] == "apt"
+
+    # RHEL / Fedora / Rocky / Alma
+    - name: Upgrade dnf packages
+      ansible.builtin.dnf:
+        name: "*"
+        state: latest
+        update_cache: true
+      when: ansible_facts["pkg_mgr"] in ["dnf", "dnf5"]
+
+    - name: Autoremove unused dnf packages
+      ansible.builtin.dnf:
+        autoremove: true
+      when:
+        - ansible_facts["pkg_mgr"] in ["dnf", "dnf5"]
+        - autoremove | bool
+
+    - name: Check dnf reboot requirement
+      ansible.builtin.command: needs-restarting -r
+      register: dnf_reboot_required
+      failed_when: false
+      changed_when: false
+      when: ansible_facts["pkg_mgr"] in ["dnf", "dnf5"]
+
+    # Reboot
+    - name: Reboot if required
+      ansible.builtin.reboot:
+        reboot_timeout: "{{ reboot_timeout }}"
+        msg: "Reboot triggered by Ansible after package upgrade"
+      when:
+        - reboot_if_required | bool
+        - (apt_reboot_required.stat.exists | default(false))
+          or (dnf_reboot_required.rc | default(0) == 1)

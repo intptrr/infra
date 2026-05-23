@@ -72,6 +72,16 @@ typings/
 .env
 .env.test
 
+# Ansible — never commit real hosts, secrets, or vault keys
+ansible/inventory.yml
+ansible/inventory.*.yml
+!ansible/inventory.example.yml
+ansible/host_vars/
+ansible/group_vars/
+ansible/.vault_pass
+ansible/*.retry
+ansible/fact_cache/
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 
