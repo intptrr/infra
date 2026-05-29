@@ -7,9 +7,11 @@
       - bat
       - eza
       - fd
+      - fzf
       - git
       - jq
       - neovim
+      - nvm
       - ripgrep
       - starship
       - zoxide
@@ -18,6 +20,7 @@
     apt_packages:
       - bat
       - fd-find
+      - fzf
       - git
       - jq
       - neovim
@@ -29,7 +32,7 @@
       community.general.homebrew:
         name: "{{ brew_packages }}"
         state: present
-      register: pkg_result
+      register: brew_result
       when: ansible_facts["os_family"] == "Darwin"
 
     - name: Install packages via apt
@@ -38,7 +41,7 @@
         state: present
         update_cache: true
       become: true
-      register: pkg_result
+      register: apt_result
       when: ansible_facts["os_family"] == "Debian"
 
     - name: Show changes
@@ -48,4 +51,6 @@
             (pkg_result.changed_pkgs | default(pkg_result.stdout_lines) | default([]))
             if pkg_result.changed else 'no changes'
           }}
+      vars:
+        pkg_result: "{{ brew_result if ansible_facts['os_family'] == 'Darwin' else apt_result }}"
       when: pkg_result is not skipped
