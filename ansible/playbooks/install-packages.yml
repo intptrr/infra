@@ -14,6 +14,7 @@
       - nvm
       - ripgrep
       - starship
+      - tmux
       - zoxide
       - zsh
 
@@ -25,6 +26,7 @@
       - jq
       - neovim
       - ripgrep
+      - tmux
       - zsh
 
   tasks:
