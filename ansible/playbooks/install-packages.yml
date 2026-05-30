@@ -10,8 +10,8 @@
       - fzf
       - git
       - jq
+      - mise
       - neovim
-      - nvm
       - ripgrep
       - starship
       - tmux
