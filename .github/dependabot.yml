@@ -1,0 +1,7 @@
+version: 2
+updates:
+  - package-ecosystem: docker
+    directories:
+      - /docker-compose/*
+    schedule:
+      interval: weekly
