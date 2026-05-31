@@ -34,6 +34,12 @@ Test connectivity:
 ansible-playbook playbooks/ping-hosts.yml
 ```
 
+Install packages on the local host (requires sudo password):
+
+```sh
+ansible-playbook playbooks/install-packages.yml --ask-become-pass
+```
+
 Upgrade installed packages on all hosts (reboots only if the host signals one is required):
 
 ```sh
