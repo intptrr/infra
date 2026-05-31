@@ -1,6 +1,6 @@
 ---
 - name: Install packages
-  hosts: local
+  hosts: all
   gather_facts: true
   vars:
     brew_packages:
