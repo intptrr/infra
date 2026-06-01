@@ -30,6 +30,22 @@
       - tmux
       - zsh
 
+    dnf_packages:
+      - bat
+      - curl
+      - eza
+      - fd-find
+      - fzf
+      - git
+      - jq
+      - mise
+      - neovim
+      - ripgrep
+      - starship
+      - tmux
+      - zoxide
+      - zsh
+
   tasks:
     - name: Install packages via Homebrew
       community.general.homebrew:
@@ -47,7 +63,30 @@
       register: apt_result
       when: ansible_facts["os_family"] == "Debian"
 
-    # mise, starship, zoxide and eza are not in apt; install their
+    - name: Enable mise copr repository
+      community.general.copr:
+        name: jdxcode/mise
+        state: enabled
+      become: true
+      when: ansible_facts["os_family"] == "RedHat"
+
+    - name: Enable starship copr repository
+      community.general.copr:
+        name: atim/starship
+        state: enabled
+      become: true
+      when: ansible_facts["os_family"] == "RedHat"
+
+    - name: Install packages via dnf
+      ansible.builtin.dnf:
+        name: "{{ dnf_packages }}"
+        state: present
+        update_cache: true
+      become: true
+      register: dnf_result
+      when: ansible_facts["os_family"] == "RedHat"
+
+    # mise, starship, zoxide and eza are not always packaged; install their
     # official binaries into ~/.local/bin.
     - name: Install packages unavailable in apt
       ansible.builtin.shell: |
@@ -58,7 +97,7 @@
         : > "$logfile"
         installed=""
 
-        if [ ! -x "$bindir/eza" ]; then
+        if ! command -v eza >/dev/null 2>&1; then
           echo "[install-packages] installing eza"
           case "$(uname -m)" in
             aarch64|arm64) target=aarch64-unknown-linux-gnu ;;
@@ -71,7 +110,7 @@
           echo "[install-packages] eza already installed"
         fi
 
-        if [ ! -x "$bindir/mise" ]; then
+        if ! command -v mise >/dev/null 2>&1; then
           echo "[install-packages] installing mise"
           curl -sSfL https://mise.run 2>>"$logfile" | sh >>"$logfile" 2>&1
           installed="$installed mise"
@@ -79,7 +118,7 @@
           echo "[install-packages] mise already installed"
         fi
 
-        if [ ! -x "$bindir/starship" ]; then
+        if ! command -v starship >/dev/null 2>&1; then
           echo "[install-packages] installing starship"
           curl -sS https://starship.rs/install.sh 2>>"$logfile" | sh -s -- --yes -b "$bindir" >>"$logfile" 2>&1
           installed="$installed starship"
@@ -87,7 +126,7 @@
           echo "[install-packages] starship already installed"
         fi
 
-        if [ ! -x "$bindir/zoxide" ]; then
+        if ! command -v zoxide >/dev/null 2>&1; then
           echo "[install-packages] installing zoxide"
           curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh 2>>"$logfile" | sh >>"$logfile" 2>&1
           installed="$installed zoxide"
@@ -107,7 +146,7 @@
         executable: /bin/bash
       register: tools_install
       changed_when: "'CHANGED' in tools_install.stdout"
-      when: ansible_facts["os_family"] == "Debian"
+      when: ansible_facts["os_family"] in ["Debian", "RedHat"]
 
     - name: Show changes
       ansible.builtin.debug:
@@ -119,5 +158,8 @@
         apt_changes: >-
           {{ (apt_result.stdout_lines | default([]))
              if ansible_facts['os_family'] == 'Debian' else [] }}
+        dnf_changes: >-
+          {{ (dnf_result.results | default([]))
+             if ansible_facts['os_family'] == 'RedHat' else [] }}
         tools_changes: "{{ tools_install.stdout_lines | default([]) }}"
-        changes: "{{ brew_changes + apt_changes + tools_changes }}"
+        changes: "{{ brew_changes + apt_changes + dnf_changes + tools_changes }}"
