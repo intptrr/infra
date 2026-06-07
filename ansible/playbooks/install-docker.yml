@@ -1,0 +1,106 @@
+---
+- name: Install Docker
+  hosts: all
+  gather_facts: true
+  vars:
+    docker_users: "{{ [ansible_user] if ansible_user is defined else [] }}"
+
+  tasks:
+    # macOS - OrbStack (Docker/Linux runtime)
+    - name: Install OrbStack via Homebrew
+      community.general.homebrew_cask:
+        name: orbstack
+        state: present
+      when: ansible_facts["os_family"] == "Darwin"
+
+    # Debian / Ubuntu - official Docker apt repository
+    - name: Install Docker on Debian/Ubuntu
+      when: ansible_facts["os_family"] == "Debian"
+      become: true
+      block:
+        - name: Install prerequisites
+          ansible.builtin.apt:
+            name:
+              - ca-certificates
+              - curl
+            state: present
+            update_cache: true
+
+        - name: Create apt keyrings directory
+          ansible.builtin.file:
+            path: /etc/apt/keyrings
+            state: directory
+            mode: "0755"
+
+        - name: Add Docker GPG key
+          ansible.builtin.get_url:
+            url: "https://download.docker.com/linux/{{ ansible_facts['distribution'] | lower }}/gpg"
+            dest: /etc/apt/keyrings/docker.asc
+            mode: "0644"
+
+        - name: Add Docker apt repository
+          ansible.builtin.apt_repository:
+            repo: >-
+              deb [arch={{ docker_apt_arch }} signed-by=/etc/apt/keyrings/docker.asc]
+              https://download.docker.com/linux/{{ ansible_facts['distribution'] | lower }}
+              {{ ansible_facts['distribution_release'] }} stable
+            filename: docker
+            state: present
+          vars:
+            docker_apt_arch: >-
+              {{ 'arm64' if ansible_facts['architecture'] in ['aarch64', 'arm64'] else 'amd64' }}
+
+        - name: Install Docker packages
+          ansible.builtin.apt:
+            name:
+              - docker-ce
+              - docker-ce-cli
+              - containerd.io
+              - docker-buildx-plugin
+              - docker-compose-plugin
+            state: present
+            update_cache: true
+
+    # RHEL / Fedora / Rocky / Alma - official Docker dnf repository
+    - name: Install Docker on RedHat
+      when: ansible_facts["os_family"] == "RedHat"
+      become: true
+      block:
+        - name: Add Docker dnf repository
+          ansible.builtin.get_url:
+            url: "https://download.docker.com/linux/{{ docker_dnf_distro }}/docker-ce.repo"
+            dest: /etc/yum.repos.d/docker-ce.repo
+            mode: "0644"
+          vars:
+            docker_dnf_distro: "{{ 'fedora' if ansible_facts['distribution'] == 'Fedora' else 'centos' }}"
+
+        - name: Install Docker packages
+          ansible.builtin.dnf:
+            name:
+              - docker-ce
+              - docker-ce-cli
+              - containerd.io
+              - docker-buildx-plugin
+              - docker-compose-plugin
+            state: present
+            update_cache: true
+
+    # Linux - enable service and configure user access
+    - name: Enable and start Docker service
+      ansible.builtin.systemd:
+        name: docker
+        state: started
+        enabled: true
+      become: true
+      when: ansible_facts["os_family"] in ["Debian", "RedHat"]
+
+    - name: Add users to the docker group
+      ansible.builtin.user:
+        name: "{{ item }}"
+        groups: docker
+        append: true
+      become: true
+      loop: "{{ docker_users }}"
+      when:
+        - ansible_facts["os_family"] in ["Debian", "RedHat"]
+        - docker_users | length > 0

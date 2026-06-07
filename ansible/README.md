@@ -40,6 +40,12 @@ Install packages on the local host (requires sudo password):
 ansible-playbook playbooks/install-packages.yml --ask-become-pass
 ```
 
+Install Docker (OrbStack on macOS, Docker Engine via the official repos on Linux):
+
+```sh
+ansible-playbook playbooks/install-docker.yml --ask-become-pass
+```
+
 Upgrade installed packages on all hosts (reboots only if the host signals one is required):
 
 ```sh
