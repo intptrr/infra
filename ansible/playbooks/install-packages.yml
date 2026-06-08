@@ -8,6 +8,7 @@
       - eza
       - fd
       - fzf
+      - gh
       - git
       - jq
       - mise
@@ -23,6 +24,7 @@
       - curl
       - fd-find
       - fzf
+      - gh
       - git
       - jq
       - neovim
@@ -36,6 +38,7 @@
       - eza
       - fd-find
       - fzf
+      - gh
       - git
       - jq
       - mise
@@ -53,6 +56,24 @@
         state: present
       register: brew_result
       when: ansible_facts["os_family"] == "Darwin"
+
+    - name: Add GitHub CLI apt keyring
+      ansible.builtin.get_url:
+        url: https://cli.github.com/packages/githubcli-archive-keyring.gpg
+        dest: /usr/share/keyrings/githubcli-archive-keyring.gpg
+        mode: "0644"
+      become: true
+      when: ansible_facts["os_family"] == "Debian"
+
+    - name: Add GitHub CLI apt repository
+      ansible.builtin.apt_repository:
+        repo: "deb [arch={{ deb_arch }} signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main"
+        filename: github-cli
+        state: present
+      become: true
+      vars:
+        deb_arch: "{{ {'x86_64': 'amd64', 'aarch64': 'arm64', 'armv7l': 'armhf'}.get(ansible_facts['architecture'], ansible_facts['architecture']) }}"
+      when: ansible_facts["os_family"] == "Debian"
 
     - name: Install packages via apt
       ansible.builtin.apt:
