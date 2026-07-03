@@ -1,6 +1,6 @@
 services:
   3x-ui:
-    image: ghcr.io/mhsanaei/3x-ui:v3.4.1
+    image: ghcr.io/mhsanaei/3x-ui:v3.4.2
     container_name: 3x-ui
     volumes:
       - /opt/3x-ui/db/:/etc/x-ui/
