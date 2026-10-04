@@ -10,12 +10,15 @@
       - fzf
       - gh
       - git
+      - git-delta
       - jq
+      - lazygit
       - mise
       - neovim
       - ripgrep
       - starship
       - tmux
+      - zellij
       - zoxide
       - zsh
 
@@ -27,7 +30,9 @@
       - fzf
       - gh
       - git
+      - git-delta
       - jq
+      - lazygit
       - mise
       - neovim
       - ripgrep
@@ -44,7 +49,9 @@
       - fzf
       - gh
       - git
+      - git-delta
       - jq
+      - lazygit
       - mise
       - neovim
       - ripgrep
@@ -112,6 +119,13 @@
       become: true
       when: ansible_facts["os_family"] == "RedHat"
 
+    - name: Enable lazygit copr repository
+      community.general.copr:
+        name: dejan/lazygit
+        state: enabled
+      become: true
+      when: ansible_facts["os_family"] == "RedHat"
+
     - name: Install packages via dnf
       ansible.builtin.dnf:
         name: "{{ dnf_packages }}"
@@ -120,6 +134,16 @@
       become: true
       register: dnf_result
       when: ansible_facts["os_family"] == "RedHat"
+
+    - name: Install zellij from GitHub releases
+      ansible.builtin.unarchive:
+        src: "https://github.com/zellij-org/zellij/releases/latest/download/zellij-{{ ansible_facts['architecture'] }}-unknown-linux-musl.tar.gz"
+        dest: /usr/local/bin
+        remote_src: true
+        creates: /usr/local/bin/zellij
+      become: true
+      register: zellij_result
+      when: ansible_facts["os_family"] in ["Debian", "RedHat"]
 
     - name: Show changes
       ansible.builtin.debug:
@@ -134,4 +158,5 @@
         dnf_changes: >-
           {{ (dnf_result.results | default([]))
              if ansible_facts['os_family'] == 'RedHat' else [] }}
-        changes: "{{ brew_changes + apt_changes + dnf_changes }}"
+        zellij_changes: "{{ ['zellij'] if zellij_result is changed else [] }}"
+        changes: "{{ brew_changes + apt_changes + dnf_changes + zellij_changes }}"
