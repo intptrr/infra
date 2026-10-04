@@ -22,14 +22,18 @@
     apt_packages:
       - bat
       - curl
+      - eza
       - fd-find
       - fzf
       - gh
       - git
       - jq
+      - mise
       - neovim
       - ripgrep
+      - starship
       - tmux
+      - zoxide
       - zsh
 
     dnf_packages:
@@ -49,6 +53,8 @@
       - zoxide
       - zsh
 
+    deb_arch: "{{ {'x86_64': 'amd64', 'aarch64': 'arm64', 'armv7l': 'armhf'}.get(ansible_facts['architecture'], ansible_facts['architecture']) }}"
+
   tasks:
     - name: Install packages via Homebrew
       community.general.homebrew:
@@ -67,8 +73,20 @@
         signed_by: https://cli.github.com/packages/githubcli-archive-keyring.gpg
         install_python_debian: true
       become: true
-      vars:
-        deb_arch: "{{ {'x86_64': 'amd64', 'aarch64': 'arm64', 'armv7l': 'armhf'}.get(ansible_facts['architecture'], ansible_facts['architecture']) }}"
+      when: ansible_facts["os_family"] == "Debian"
+
+    # Pin the architecture: the PPA lists amd64v3 but builds nothing for it, and
+    # apt on amd64v3 hosts would use that empty package list instead of amd64.
+    - name: Add mise apt repository
+      ansible.builtin.deb822_repository:
+        name: mise
+        uris: https://ppa.launchpadcontent.net/jdxcode/mise/ubuntu
+        suites: "{{ ansible_facts['distribution_release'] }}"
+        components: main
+        architectures: "{{ deb_arch }}"
+        signed_by: "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x38A097C0CCE691795E4B15BE23997D3EEE1EDC52"
+        install_python_debian: true
+      become: true
       when: ansible_facts["os_family"] == "Debian"
 
     - name: Install packages via apt
@@ -103,68 +121,6 @@
       register: dnf_result
       when: ansible_facts["os_family"] == "RedHat"
 
-    # mise, starship, zoxide and eza are not always packaged; install their
-    # official binaries into ~/.local/bin.
-    - name: Install packages unavailable in apt
-      ansible.builtin.shell: |
-        set -o pipefail
-        bindir="$HOME/.local/bin"
-        mkdir -p "$bindir"
-        logfile="${TMPDIR:-/tmp}/install-packages.log"
-        : > "$logfile"
-        installed=""
-
-        if ! command -v eza >/dev/null 2>&1; then
-          echo "[install-packages] installing eza"
-          case "$(uname -m)" in
-            aarch64|arm64) target=aarch64-unknown-linux-gnu ;;
-            *) target=x86_64-unknown-linux-gnu ;;
-          esac
-          curl -sSfL "https://github.com/eza-community/eza/releases/latest/download/eza_${target}.tar.gz" 2>>"$logfile" \
-            | tar -xz -C "$bindir" >>"$logfile" 2>&1
-          installed="$installed eza"
-        else
-          echo "[install-packages] eza already installed"
-        fi
-
-        if ! command -v mise >/dev/null 2>&1; then
-          echo "[install-packages] installing mise"
-          curl -sSfL https://mise.run 2>>"$logfile" | sh >>"$logfile" 2>&1
-          installed="$installed mise"
-        else
-          echo "[install-packages] mise already installed"
-        fi
-
-        if ! command -v starship >/dev/null 2>&1; then
-          echo "[install-packages] installing starship"
-          curl -sS https://starship.rs/install.sh 2>>"$logfile" | sh -s -- --yes -b "$bindir" >>"$logfile" 2>&1
-          installed="$installed starship"
-        else
-          echo "[install-packages] starship already installed"
-        fi
-
-        if ! command -v zoxide >/dev/null 2>&1; then
-          echo "[install-packages] installing zoxide"
-          curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh 2>>"$logfile" | sh >>"$logfile" 2>&1
-          installed="$installed zoxide"
-        else
-          echo "[install-packages] zoxide already installed"
-        fi
-
-        installed="${installed# }"
-        if [ -n "$installed" ]; then
-          echo "[install-packages] installed: $installed"
-          echo "CHANGED: $installed"
-        else
-          echo "[install-packages] no changes"
-          echo "OK"
-        fi
-      args:
-        executable: /bin/bash
-      register: tools_install
-      changed_when: "'CHANGED' in tools_install.stdout"
-      when: ansible_facts["os_family"] in ["Debian", "RedHat"]
-
     - name: Show changes
       ansible.builtin.debug:
         msg: "{{ changes if changes else 'no changes' }}"
@@ -178,5 +134,4 @@
         dnf_changes: >-
           {{ (dnf_result.results | default([]))
              if ansible_facts['os_family'] == 'RedHat' else [] }}
-        tools_changes: "{{ tools_install.stdout_lines | default([]) }}"
-        changes: "{{ brew_changes + apt_changes + dnf_changes + tools_changes }}"
+        changes: "{{ brew_changes + apt_changes + dnf_changes }}"
