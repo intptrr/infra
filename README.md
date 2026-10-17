@@ -24,6 +24,8 @@ Persistent data:
 
 - `/opt/3x-ui/db/` — panel database and config
 - `/opt/3x-ui/cert/` — TLS certificates
+- `/opt/3x-ui/acme/` — acme.sh state, keeps certificate auto-renewal working
+  across container recreation
 
 ### n8n
 

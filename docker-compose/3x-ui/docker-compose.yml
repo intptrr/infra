@@ -5,6 +5,7 @@ services:
     volumes:
       - /opt/3x-ui/db/:/etc/x-ui/
       - /opt/3x-ui/cert/:/root/cert/
+      - /opt/3x-ui/acme/:/root/.acme.sh/
     environment:
       XRAY_VMESS_AEAD_FORCED: "false"
       XUI_ENABLE_FAIL2BAN: "true"
