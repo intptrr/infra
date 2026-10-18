@@ -14,3 +14,10 @@ all:
     servers:
       hosts:
         example:
+    webservers:
+      hosts:
+        example:
+          nginx_sites:
+            - domain: app.example.com
+              upstream: http://127.0.0.1:8080
+              client_max_body_size: 16m

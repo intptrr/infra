@@ -46,6 +46,46 @@ Install Docker (OrbStack on macOS, Docker Engine via the official repos on Linux
 ansible-playbook playbooks/install-docker.yml --ask-become-pass
 ```
 
+Set up nginx as an HTTPS reverse proxy with Let's Encrypt certificates on the
+`webservers` group:
+
+```sh
+ansible-playbook playbooks/setup-nginx-certbot.yml
+```
+
+Define each host's sites in the inventory. Every domain must resolve to the
+host, and ports 80 (certificate validation) and 443 must be reachable from the
+internet:
+
+```yaml
+webservers:
+  hosts:
+    example:
+      nginx_sites:
+        - domain: app.example.com
+          upstream: http://127.0.0.1:8080
+          client_max_body_size: 16m
+```
+
+`client_max_body_size` is optional and defaults to nginx's `1m`. Certificates
+renew automatically, and nginx reloads after each renewal. To test renewal on
+the host:
+
+```sh
+sudo certbot renew --dry-run
+```
+
+The playbook doesn't change firewall rules. Fedora hosts often run firewalld by
+default, so open the ports there yourself:
+
+```sh
+sudo firewall-cmd --permanent --add-service=http --add-service=https
+sudo firewall-cmd --reload
+```
+
+Where SELinux is enabled, the playbook turns on `httpd_can_network_connect` so
+nginx can reach the upstreams.
+
 Upgrade installed packages on all hosts (reboots only if the host signals one is required):
 
 ```sh
@@ -71,3 +111,5 @@ The `upgrade-packages.yml` playbook handles:
 
 - Debian / Ubuntu (`apt`)
 - RHEL / Fedora / Rocky / Alma (`dnf`)
+
+The `setup-nginx-certbot.yml` playbook handles Debian / Ubuntu and Fedora.
